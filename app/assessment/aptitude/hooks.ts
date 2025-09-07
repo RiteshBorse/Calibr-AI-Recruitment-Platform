@@ -16,7 +16,7 @@ export function useTestQuestions(sessionId: string | null) {
 
     const loadQuestions = async () => {
       try {
-        const result = await fetchTestSession(sessionId)
+        const result = await fetchTestSession()
         if (result.success && result.data?.allQuestions) {
           setQuestions(result.data.allQuestions)
         } else {

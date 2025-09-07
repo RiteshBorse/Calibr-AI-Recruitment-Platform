@@ -74,7 +74,7 @@ export type TestWithQuestions = Omit<Test, 'questionIds'> & {
   questions: Question[];
 };
 
-export type TestSession = {
+export type ActiveTestSession = {
   test: TestWithQuestions;
   currentQuestionIndex: number;
   remainingTime: number;

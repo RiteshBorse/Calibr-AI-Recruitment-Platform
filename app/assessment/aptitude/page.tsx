@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -32,7 +32,7 @@ export default function AptitudeExamPage() {
   const [endReason, setEndReason] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const endExam = (reason: string) => {
+  const endExam = useCallback((reason: string) => {
     if (ended) return;
     setEnded(true);
     setEndReason(reason);
@@ -40,7 +40,7 @@ export default function AptitudeExamPage() {
       document.exitFullscreen().catch(() => {});
     }
     
-  };
+  }, [ended]);
 
   // const startExam = async () => {
   //   try {
@@ -92,7 +92,7 @@ export default function AptitudeExamPage() {
 
     // Cleanup function
     return () => clearInterval(timer);
-  }, []);
+  }, [endExam]);
 
   useEffect(() => {
     if (!hasStarted || ended) return;
@@ -115,7 +115,7 @@ export default function AptitudeExamPage() {
       document.removeEventListener('visibilitychange', onVisibility);
       // document.removeEventListener('fullscreenchange', onFullscreen);
     };
-  }, [hasStarted, ended]);
+  }, [hasStarted, ended, endExam]);
 
   const formatTime = (secs: number) => {
     const hours = Math.floor(secs / 3600);

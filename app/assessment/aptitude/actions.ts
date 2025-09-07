@@ -20,7 +20,7 @@ export async function fetchTestSession() {
           const matchingQuestions = questionsArray
             .filter((q: any) => questionIds.includes(q.id));
           
-          console.log(`✅ Loaded ${matchingQuestions.length} questions for assessment`);
+          console.log(` Loaded ${matchingQuestions.length} questions for assessment`);
           
           return {
             success: true,

@@ -49,6 +49,6 @@ const candidateSchema : Schema<Candidate>  = new Schema({
     }
 });
 
-const User = (mongoose.models.User as mongoose.Model<Candidate>) || mongoose.model<Candidate>('User', candidateSchema);
+const candidate = (mongoose.models.Candidate as mongoose.Model<Candidate>) || mongoose.model<Candidate>('candidate', candidateSchema);
 
-export default User; 
+export default candidate; 

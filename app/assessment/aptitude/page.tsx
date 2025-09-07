@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 // import { Separator } from "@/components/ui/separator";
 import { Clock, Flag, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 import { fetchTestSession } from './actions';
+import { useTestQuestions } from './hooks';
 
 type Question = {
   id: number;
@@ -53,13 +54,17 @@ export default function AptitudeExamPage() {
   //   }
   // };
 
+  
+  const assessmentId = '65f7a1b2c3d4e5f6a7b8c9d1'
+  const { questions, loading } = useTestQuestions(assessmentId)
+
   useEffect(() => {
     setMounted(true);
     
     // Load test questions for integration
     const loadTestQuestions = async () => {
       try {
-        const result = await fetchTestSession();
+        const result = await fetchTestSession(assessmentId);
         if (result && result.success && result.data) {
           console.log(`✅ Loaded ${result.data.matchingQuestions} questions 
             successfully`);
@@ -130,48 +135,22 @@ export default function AptitudeExamPage() {
   const sections: Section[] = [
     {
       name: "A",
-      title: "Logical Reasoning",
-      questions: Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        text: `If all roses are flowers and some flowers are red, which statement must be true?`,
-        options: ["All roses are red", "Some roses may be red", "No roses are red", "All red things are roses"],
+      title: "Aptitude",
+      questions: (questions || []).slice(0, 11).map((q, idx) => ({
+        id: q.id ?? idx + 1,
+        text: q.question ?? q.text ?? '',
+        options: q.options ?? [],
       })),
-    },
-    {
-      name: "B", 
-      title: "Numerical Ability",
-      questions: Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        text: `What is 15% of ${240 + i * 10}?`,
-        options: [`${36 + i * 1.5}`, `${35 + i * 1.5}`, `${38 + i * 1.5}`, `${34 + i * 1.5}`],
-      })),
-    },
-    {
-      name: "C",
-      title: "Verbal Reasoning", 
-      questions: Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        text: `Choose the word that best completes the analogy: Book : Author :: Painting : ?`,
-        options: ["Canvas", "Artist", "Gallery", "Frame"],
-      })),
-    },
-    {
-      name: "D",
-      title: "Data Interpretation",
-      questions: Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        text: `Based on the given chart, what is the percentage increase from year 1 to year 2?`,
-        options: ["12%", "15%", "18%", "20%"],
-      })),
-    },
+    }
   ];
 
   const [activeSection, setActiveSection] = useState("A");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const currentSection = sections.find((s) => s.name === activeSection)!;
-  const currentQuestion = currentSection.questions[currentQuestionIndex];
-  const questionKey = `${activeSection}-${currentQuestion.id}`;
+  const hasQuestions = currentSection.questions && currentSection.questions.length > 0;
+  const currentQuestion = hasQuestions ? currentSection.questions[currentQuestionIndex] : undefined;
+  const questionKey = `${activeSection}-${currentQuestion ? currentQuestion.id : 'pending'}`;
 
   const handleNext = () => {
     if (currentQuestionIndex < currentSection.questions.length - 1) {
@@ -244,9 +223,11 @@ export default function AptitudeExamPage() {
 
   const stats = getTotalStats();
 
-  if (!mounted) {
+  if (!mounted || loading || !hasQuestions) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A0A18] via-[#0D0D20] to-[#0A0A18]" />
+      <div className="min-h-screen bg-gradient-to-br from-[#0A0A18] via-[#0D0D20] to-[#0A0A18] flex items-center justify-center text-white/70">
+        Loading questions...
+      </div>
     );
   }
 
@@ -387,7 +368,7 @@ export default function AptitudeExamPage() {
                 <div className="flex-1">
                   <div className="mb-8">
                     <h3 className="text-xl md:text-2xl font-medium text-white leading-relaxed mb-6">
-                      {currentQuestion.text}
+                      {currentQuestion!.text}
                     </h3>
                     
                     <RadioGroup 
@@ -395,7 +376,7 @@ export default function AptitudeExamPage() {
                       onValueChange={handleAnswerChange}
                       className="space-y-3"
                     >
-                      {currentQuestion.options.map((option, idx) => (
+                      {currentQuestion!.options.map((option, idx) => (
                         <div key={idx} className="group">
                           <div className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 cursor-pointer">
                             <RadioGroupItem 

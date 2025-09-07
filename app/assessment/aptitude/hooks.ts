@@ -2,21 +2,21 @@
 import { useState, useEffect } from 'react'
 import { fetchTestSession } from './actions'
 
-export function useTestQuestions(sessionId: string | null) {
+export function useTestQuestions(assessmentId: string | null) {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!sessionId) {
-      setError('No session ID provided')
+    if (!assessmentId) {
+      setError('No assessmentId provided')
       setLoading(false)
       return
     }
 
     const loadQuestions = async () => {
       try {
-        const result = await fetchTestSession()
+        const result = await fetchTestSession(assessmentId)
         if (result.success && result.data?.allQuestions) {
           setQuestions(result.data.allQuestions)
         } else {
@@ -31,7 +31,7 @@ export function useTestQuestions(sessionId: string | null) {
     }
 
     loadQuestions()
-  }, [sessionId])
+  }, [assessmentId])
 
   return { questions, loading, error }
 }

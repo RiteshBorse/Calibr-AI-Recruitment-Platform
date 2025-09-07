@@ -2,14 +2,19 @@
 import { connectToDatabase } from '@/utils/connectDb'
 import Aptitude from '@/models/aptitude.model'
 import questionsData from './aptitude_questions_31k.json'
-export async function fetchTestSession() {
+
+
+
+export async function fetchTestSession(assessmentId?: string) {
   try {
     await connectToDatabase()
     
-    const allAssessments = await Aptitude.find({}).limit(3);
     
-    if (allAssessments.length > 0) {
-      const assessment = allAssessments[0];
+    const assessment = assessmentId
+      ? await Aptitude.findOne({ assessmentId })
+      : null;
+    
+    if (assessment) {
       
       try {
         const questionsArray = (questionsData as any).questions;
@@ -47,7 +52,7 @@ export async function fetchTestSession() {
         return { success: false, error: 'Failed to load questions data' };
       }
     } else {
-      return { success: false, error: 'No assessments found' };
+      return { success: false, error: 'No assessment found for the provided assessmentId' };
     }
   } catch (error) {
     console.error('❌ Error in fetchTestSession:', error);

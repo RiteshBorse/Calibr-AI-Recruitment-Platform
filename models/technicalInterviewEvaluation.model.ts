@@ -15,6 +15,30 @@ export interface TechnicalInterviewEvaluation extends Document {
   audioUrl?: string;
   videoUrl?: string;
 
+  // QA entries captured during interview
+  entries?: {
+    question: string;
+    correctAnswer?: string;
+    userAnswer: string;
+    correctness?: number; // 0-100
+    askedAt: Date;
+    // New fields for queue architecture
+    question_text?: string; // Alias for question
+    user_answer?: string; // Alias for userAnswer
+    ideal_answer?: string; // Alias for correctAnswer
+    correctness_score?: number; // Alias for correctness
+    source_urls?: string[];
+    question_type?: 'technical' | 'non-technical' | 'followup' | 'mood-triggered';
+    queue_number?: 0 | 1 | 2 | 3;
+    timestamp?: Date; // Alias for askedAt
+    // Queue 0 specific fields
+    mood_state?: string;
+    violation_snapshot?: {
+      violation_count: number;
+      current_violations: string[];
+    };
+  }[];
+
   // AI outputs
   aiSummary?: string;
   aiScores?: { key: string; score: number }[]; // map to rubric categories
@@ -48,6 +72,29 @@ const TechnicalInterviewEvaluationSchema: Schema = new Schema({
   transcriptUrl: { type: String },
   audioUrl: { type: String },
   videoUrl: { type: String },
+
+  entries: [{
+    question: { type: String, required: true },
+    correctAnswer: { type: String },
+    userAnswer: { type: String, required: true },
+    correctness: { type: Number, min: 0, max: 100 },
+    askedAt: { type: Date, default: Date.now },
+    // New fields for queue architecture
+    question_text: { type: String },
+    user_answer: { type: String },
+    ideal_answer: { type: String },
+    correctness_score: { type: Number, min: 0, max: 100 },
+    source_urls: [{ type: String }],
+    question_type: { type: String, enum: ['technical', 'non-technical', 'followup', 'mood-triggered'] },
+    queue_number: { type: Number, enum: [0, 1, 2, 3] },
+    timestamp: { type: Date },
+    // Queue 0 specific fields
+    mood_state: { type: String },
+    violation_snapshot: {
+      violation_count: { type: Number, min: 0 },
+      current_violations: [{ type: String }]
+    }
+  }],
 
   aiSummary: { type: String, maxlength: 20000 },
   aiScores: [{ key: { type: String }, score: { type: Number, min: 0, max: 100 } }],

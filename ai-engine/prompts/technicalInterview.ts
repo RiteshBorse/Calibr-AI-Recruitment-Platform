@@ -21,7 +21,8 @@ Return ONLY a JSON array in this exact format:
   {"question": "Describe your most recent project", "category": "non-technical", "answer": ""}
 ]
 
-Generate at least 15-20 questions. Make sure to mark technical questions as 'technical' and others as 'non-technical'.`;
+Generate at least 15-20 questions. Make sure to mark technical questions as 'technical' and others as 'non-technical'.
+Ensure at least 80% are technical questions.`;
 
 export const buildQueue2Prompt = (question: string, correctAnswer: string): string => `Based on this technical question:
 Question: ${question}
@@ -57,5 +58,26 @@ Generate ONE strong follow-up question to clarify their understanding or correct
 
 Return ONLY a JSON object:
 {"question": "your follow-up question"}`;
+
+export const buildMoodFollowupPrompt = (mood: string, context: string): string => `The candidate is showing signs of ${mood} during the interview.
+
+Current context: ${context}
+
+Generate ONE empathetic follow-up question that:
+1. Acknowledges their emotional state appropriately
+2. Helps them feel more comfortable
+3. Allows them to clarify or elaborate
+
+Return ONLY a JSON object:
+{"question": "your mood-based follow-up question"}`;
+
+// Batched generation prompt: limit number of questions
+export const buildQueue1BatchPrompt = (resume: string, count: number): string => `Analyze this resume and generate ONLY ${count} interview questions mixing technical and non-technical. For technical items, include an exact correct answer.
+
+Resume:
+${resume}
+
+Return ONLY a JSON array of objects with fields: question, category ("technical" | "non-technical"), answer (string, empty for non-technical).
+Ensure at least 80% are technical questions.`;
 
 

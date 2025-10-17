@@ -2,44 +2,12 @@
 
 import { connectToDatabase } from "@/utils/connectDb";
 import TechnicalInterviewModel from "@/models/technicalInterview.model";
-import { getGeminiResponse } from "@/ai-engine/ai-call/aiCall";
-import { buildQueue1Prompt, buildQueue2Prompt, buildAnalysisPrompt, buildFollowupPrompt } from "@/ai-engine/prompts/technicalInterview";
-
-interface Question {
-  id: string;
-  question: string;
-  category: "technical" | "non-technical" | "followup";
-  difficulty?: "medium" | "hard";
-  answer?: string;
-  parentQuestion?: string;
-}
-
-interface Queues {
-  queue1: Question[];
-  queue2: Question[];
-  queue3: Question[];
-}
-
-function generateId(): string {
-  return 'q_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-}
-
-function ensureIds(questions: Question[]): Question[] {
-  return questions.map(q => ({
-    ...q,
-    id: q.id || generateId()
-  }));
-}
-
-async function callGeminiAPI(prompt: string): Promise<string | null> {
-  try {
-    const result = await getGeminiResponse(prompt, false);
-    return typeof result === 'string' ? result : JSON.stringify(result);
-  } catch (error) {
-    console.error('API Error:', error);
-    return null;
-  }
-}
+import { buildQueue1Prompt, buildQueue2Prompt, buildAnalysisPrompt, buildFollowupPrompt, buildQueue1BatchPrompt } from "@/ai-engine/prompts/technicalInterview";
+import TechnicalInterviewEvaluationModel from "@/models/technicalInterviewEvaluation.model";
+import mongoose from "mongoose";
+import { requireAuth } from "@/utils/auth-helpers";
+import { Question, Queues, generateId, ensureIds, callGeminiAPI, randomizeQueue1 } from "@/utils/interview";
+import type { QuestionEntry } from "@/lib/interview/types";
 
 export async function getInterviewConfig(interviewId: string) {
   try {
@@ -80,11 +48,14 @@ export async function generateQuestions(resume: string): Promise<{ success: bool
 
     queue1 = ensureIds(queue1);
 
+    // Randomize Queue 1 while maintaining intro/outro and 20% non-technical limit
+    queue1 = randomizeQueue1(queue1);
+
     // Generate Queue 2 questions for technical topics
     const technicalQuestions = queue1.filter(q => q.category === "technical" && q.answer);
     let queue2: Question[] = [];
 
-    for (const tq of technicalQuestions.slice(0, 3)) { // Limit to 3 for performance
+    for (const tq of technicalQuestions) {
       const q2Prompt = buildQueue2Prompt(tq.question, tq.answer!);
 
       const q2Result = await callGeminiAPI(q2Prompt);
@@ -100,6 +71,7 @@ export async function generateQuestions(resume: string): Promise<{ success: bool
               difficulty: q.difficulty,
               answer: q.answer,
               parentQuestion: tq.question,
+              topicId: tq.topicId, // Link to parent topic
               id: generateId()
             }));
             queue2.push(...deepDiveQuestions);
@@ -122,6 +94,91 @@ export async function generateQuestions(resume: string): Promise<{ success: bool
   } catch (error) {
     console.error('Error generating questions:', error);
     return { success: false, error: 'Failed to generate questions' };
+  }
+}
+
+// Batched generation: generate a limited number of questions (e.g., 20% of target)
+export async function generateQuestionsBatch(resume: string, count: number): Promise<{ success: boolean; questions?: Question[]; error?: string }> {
+  try {
+    const prompt = buildQueue1BatchPrompt(resume, count);
+    const result = await callGeminiAPI(prompt);
+    let questions: Question[] = [];
+    if (result) {
+      try {
+        const jsonMatch = result.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          questions = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.error('Parse error:', e);
+      }
+    }
+    questions = ensureIds(questions);
+    questions = randomizeQueue1(questions);
+    return { success: true, questions };
+  } catch (error) {
+    console.error('Error generating batch questions:', error);
+    return { success: false, error: 'Failed to generate batch questions' };
+  }
+}
+
+// Evaluation lifecycle
+export async function startEvaluation(technicalInterviewId: string, assessmentId?: string | null, jobId?: string | null) {
+  try {
+    await connectToDatabase();
+    const candidateId = await requireAuth();
+    const doc = await TechnicalInterviewEvaluationModel.create({
+      candidateId: new mongoose.Types.ObjectId(candidateId),
+      technicalInterviewId: new mongoose.Types.ObjectId(technicalInterviewId),
+      assessmentId: assessmentId ? new mongoose.Types.ObjectId(assessmentId) : undefined,
+      jobId: jobId ? new mongoose.Types.ObjectId(jobId) : undefined,
+      startedAt: new Date(),
+    });
+    const id = (doc && (doc as any)._id) ? (doc as any)._id.toString() : undefined;
+    return { success: true, evaluationId: id };
+  } catch (error) {
+    console.error('Error starting evaluation:', error);
+    return { success: false, error: 'Failed to start evaluation' };
+  }
+}
+
+export async function appendQA(
+  technicalInterviewId: string, 
+  entry: QuestionEntry
+) {
+  try {
+    await connectToDatabase();
+    
+    // Map QuestionEntry fields to database schema
+    const dbEntry = {
+      question: entry.question_text,
+      correctAnswer: entry.ideal_answer,
+      userAnswer: entry.user_answer,
+      correctness: entry.correctness_score,
+      askedAt: entry.timestamp || new Date(),
+      // Store new fields
+      question_text: entry.question_text,
+      user_answer: entry.user_answer,
+      ideal_answer: entry.ideal_answer,
+      correctness_score: entry.correctness_score,
+      source_urls: entry.source_urls,
+      question_type: entry.question_type,
+      queue_number: entry.queue_number,
+      timestamp: entry.timestamp || new Date(),
+      mood_state: entry.mood_state,
+      violation_snapshot: entry.violation_snapshot
+    };
+
+    await TechnicalInterviewEvaluationModel.findOneAndUpdate(
+      { technicalInterviewId: new mongoose.Types.ObjectId(technicalInterviewId) },
+      { $push: { entries: dbEntry } },
+      { upsert: true, new: true }
+    ).lean();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error appending QA:', error);
+    return { success: false, error: 'Failed to append QA' };
   }
 }
 
@@ -153,9 +210,9 @@ export async function analyzeAnswer(
 
     const updatedQueues = { ...currentQueues };
 
-    // Handle based on correctness
-    if (correctness < 30) {
-      // Generate follow-up for wrong answer
+    // Apply flow rules based on correctness and question type
+    if (correctness <= 10) {
+      // Generate follow-up for very wrong answer
       const followupPrompt = buildFollowupPrompt(question, userAnswer);
 
       const followupResult = await callGeminiAPI(followupPrompt);
@@ -169,24 +226,46 @@ export async function analyzeAnswer(
               question: followup.question,
               category: 'followup',
               parentQuestion: question,
+              topicId: currentQuestion.topicId,
               id: generateId()
             });
+
+            // Discard all depth questions for this topic (Queue 2)
+            if (currentQuestion.topicId) {
+              updatedQueues.queue2 = updatedQueues.queue2.filter(
+                q => q.topicId !== currentQuestion.topicId
+              );
+            }
           }
         } catch (e) {
           console.error('Parse error:', e);
         }
       }
-    } else if (correctness >= 80 && currentQuestion.difficulty === 'medium') {
-      // Move hard questions to queue1 for good answers
-      const hardQuestion = updatedQueues.queue2.find(q => 
-        q.parentQuestion === currentQuestion.parentQuestion && q.difficulty === 'hard'
-      );
+    } else if (correctness >= 80 && currentQuestion.category === 'technical') {
+      // Progress to next difficulty level
+      const topicId = currentQuestion.topicId;
       
-      if (hardQuestion) {
-        updatedQueues.queue2 = updatedQueues.queue2.filter(q => q.id !== hardQuestion.id);
-        updatedQueues.queue1.unshift(hardQuestion);
+      if (!currentQuestion.difficulty) {
+        // Base question with high score → move MEDIUM to Queue 1
+        const mediumQ = updatedQueues.queue2.find(
+          q => q.topicId === topicId && q.difficulty === 'medium'
+        );
+        if (mediumQ) {
+          updatedQueues.queue2 = updatedQueues.queue2.filter(q => q.id !== mediumQ.id);
+          updatedQueues.queue1.unshift(mediumQ); // Add to front of Queue 1
+        }
+      } else if (currentQuestion.difficulty === 'medium') {
+        // Medium question with high score → move HARD to Queue 1
+        const hardQ = updatedQueues.queue2.find(
+          q => q.topicId === topicId && q.difficulty === 'hard'
+        );
+        if (hardQ) {
+          updatedQueues.queue2 = updatedQueues.queue2.filter(q => q.id !== hardQ.id);
+          updatedQueues.queue1.unshift(hardQ); // Add to front of Queue 1
+        }
       }
     }
+    // 10-80%: Just proceed to next question (no special action)
 
     return { updatedQueues, correctness };
 
@@ -194,4 +273,26 @@ export async function analyzeAnswer(
     console.error('Error analyzing answer:', error);
     return {};
   }
+}
+
+/**
+ * Check video processing violations from localStorage/session
+ * This should be called from client-side video processing component
+ */
+// This function is server-side but needs client data
+// For now it's a placeholder - actual implementation should use a client-side hook
+export async function checkVideoViolations(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _interviewId: string
+) {
+  // NOTE: This is a server action and cannot directly access client-side videoQueueIntegration
+  // The video state should be passed from client or stored in a way accessible to server
+  // For now, returning default values - actual implementation needs client-server bridge
+  
+  return {
+    violation_count: 0,
+    mood_state: 'neutral',
+    should_end: false,
+    mood_changed: false
+  };
 }

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import * as faceapi from "face-api.js";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Camera as CameraIcon } from "lucide-react";
+import { updateVideoState } from "@/lib/interview/videoQueueIntegration";
 
 export default function VideoProcessing() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -144,6 +145,14 @@ export default function VideoProcessing() {
     if (updates.mood) lastMood.current = updates.mood;
     if (updates.gesture) lastGesture.current = updates.gesture;
     if (updates.objects) lastObjects.current = updates.objects;
+
+    // === UPDATE QUEUE 0 (Video Integration) ===
+    // Send updates to the queue system for logging
+    updateVideoState({
+      mood: updates.mood,
+      gesture: updates.gesture,
+      objects: updates.objects
+    });
 
     // === MOOD LOGGING (Separate - not a violation) ===
     const currentMood =

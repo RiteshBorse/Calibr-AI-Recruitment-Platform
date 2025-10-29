@@ -42,6 +42,15 @@ export {
 
 export type { Aptitude } from './actions/aptitude-actions';
 
+// Technical Interview-related actions
+export {
+  createTechnicalInterviewRound,
+  updateTechnicalInterviewRound,
+  fetchTechnicalInterviewById,
+} from './actions/technical-interview-actions';
+
+export type { TechnicalInterview } from './actions/technical-interview-actions';
+
 // Candidate management actions
 export {
   fetchJobsWithAssessments,

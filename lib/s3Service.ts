@@ -21,14 +21,14 @@ const isServer = typeof window === "undefined";
 
 // Debug environment variables only on server
 if (isServer) {
-  console.log("Environment check:", {
-    AWS_REGION: process.env.AWS_REGION,
-    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? "Set" : "Missing",
-    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY
-      ? "Set"
-      : "Missing",
-    AWS_S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME,
-  });
+  // console.log("Environment check:", {
+  //   AWS_REGION: process.env.AWS_REGION,
+  //   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? "Set" : "Missing",
+  //   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY
+  //     ? "Set"
+  //     : "Missing",
+  //   AWS_S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME,
+  // });
 }
 
 // Configure S3 client - shared across all operations (server-side only)
@@ -52,10 +52,10 @@ if (isServer && !S3_BUCKET_NAME) {
 }
 
 if (isServer) {
-  console.log("S3 Configuration:", {
-    region: process.env.AWS_REGION || "us-east-1",
-    bucket: S3_BUCKET_NAME,
-  });
+  // console.log("S3 Configuration:", {
+  //   region: process.env.AWS_REGION || "us-east-1",
+  //   bucket: S3_BUCKET_NAME,
+  // });
 }
 
 // ============== TYPES & INTERFACES ==============
@@ -228,11 +228,6 @@ export const S3Service = {
       throw new Error("S3 bucket name is not configured");
     }
 
-    console.log("Uploading to S3:", {
-      bucket: S3_BUCKET_NAME,
-      key,
-      contentType,
-    });
 
     const uploadCommand = new PutObjectCommand({
       Bucket: S3_BUCKET_NAME,

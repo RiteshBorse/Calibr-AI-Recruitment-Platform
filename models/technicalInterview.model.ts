@@ -1,6 +1,9 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface TechnicalInterview extends Document {
+  // Candidate management (similar to Aptitude)
+  candidateIds: mongoose.Types.ObjectId[]; // authorized candidates
+  
   // Core configuration
   duration: number; // minutes
   mode: 'live' | 'async';
@@ -41,6 +44,12 @@ export interface TechnicalInterview extends Document {
 }
 
 export const TechnicalInterviewSchema: Schema = new Schema({
+  candidateIds: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'candidates',
+    default: [] 
+  }],
+  
   duration: { type: Number, min: 15, max: 480, required: true },
   mode: { type: String, enum: ['live', 'async'], default: 'live' },
   language: { type: String, default: 'en-US' },

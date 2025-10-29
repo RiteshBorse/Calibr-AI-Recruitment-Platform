@@ -446,6 +446,14 @@ export async function updateCandidatesForRound(
           return createErrorResponse('Some candidate IDs are invalid');
         }
 
+        // Add candidates to technicalInterview.candidateIds array
+        await TechnicalInterviewModel.findByIdAndUpdate(
+          roundId,
+          {
+            $addToSet: { candidateIds: { $each: candidateObjectIds } }
+          }
+        );
+
         // Update application rounds.technicalInterview status to 'shortlisted' for selected candidates
         const updateResult = await ApplicationModel.updateMany(
           {
@@ -494,6 +502,14 @@ export async function updateCandidatesForRound(
         if (candidatesCount !== candidateIds.length) {
           return createErrorResponse('Some candidate IDs are invalid');
         }
+
+        // Add candidates to hrInterview.candidateIds array
+        await HRInterviewModel.findByIdAndUpdate(
+          roundId,
+          {
+            $addToSet: { candidateIds: { $each: candidateObjectIds } }
+          }
+        );
 
         // Update application rounds.hrInterview status to 'shortlisted' for selected candidates
         const updateResult = await ApplicationModel.updateMany(

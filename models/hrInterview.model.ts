@@ -1,6 +1,9 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface HRInterview extends Document {
+  // Candidate management (matching technical interview)
+  candidateIds: mongoose.Types.ObjectId[]; // authorized candidates
+  
   // Core configuration
   duration: number; // minutes
   mode: 'live' | 'async';
@@ -35,6 +38,12 @@ export interface HRInterview extends Document {
 }
 
 export const HRInterviewSchema: Schema = new Schema({
+  candidateIds: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'candidates',
+    default: [] 
+  }],
+  
   duration: { type: Number, min: 15, max: 240, required: true },
   mode: { type: String, enum: ['live', 'async'], default: 'live' },
   language: { type: String, default: 'en-US' },

@@ -50,7 +50,7 @@ export default function TranscriptDisplay({
       {/* Auto-submit indicator */}
       {finalTranscript && !isUserMuted && (
         <div className="mt-3 text-white/50 text-xs">
-          💡 Answer will auto-submit after 2 seconds of silence
+          💡 Answer will auto-submit after 3 seconds of silence. Mute for more time to think
         </div>
       )}
 

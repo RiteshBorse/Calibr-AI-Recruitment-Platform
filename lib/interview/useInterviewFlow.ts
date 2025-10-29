@@ -571,8 +571,11 @@ export function useInterviewFlow(options: UseInterviewFlowOptions) {
       let correctness: number | undefined = undefined;
       let analysis: any = undefined;
 
-      if (hasIdealAnswer && questionToSubmit.category === "technical") {
-        console.log("[Answer] Analyzing technical answer...");
+      // Analyze answer for BOTH technical AND non-technical (HR) questions
+      // Technical: Evaluate against ideal answer
+      // HR: Evaluate based on behavioral criteria
+      if (hasIdealAnswer) {
+        console.log(`[Answer] Analyzing ${questionToSubmit.category} answer...`);
         analysis = await adapter.analyze(
           questionToSubmit.question,
           questionToSubmit.answer || "",
@@ -583,6 +586,13 @@ export function useInterviewFlow(options: UseInterviewFlowOptions) {
         );
         correctness = analysis?.correctness;
         console.log(`[Answer] Analysis complete, correctness: ${correctness !== undefined ? correctness + "%" : "N/A"}`);
+        
+        // Log route_action for debugging (important for HR Q3 followups)
+        if (analysis?.evaluation?.route_action) {
+          console.log(`[Answer] Route action: ${analysis.evaluation.route_action}`);
+        }
+      } else {
+        console.log(`[Answer] Skipping analysis - no ideal answer/criteria available`);
       }
 
       console.log("[Answer] Storing answer in database...");

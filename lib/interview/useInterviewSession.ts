@@ -236,18 +236,17 @@ export function useInterviewSession(options: UseInterviewSessionOptions) {
 
         let answer: string | undefined, source_urls: string[] | undefined;
 
-        if (q.category === "technical") {
-          console.log(`[Preprocessing] Generating ideal answer for ${q.id}...`);
-          const result = await actions.preprocessQuestion(q.question);
-          if (result.success && result.answer) {
-            answer = result.answer;
-            source_urls = result.source_urls || [];
-            console.log(`[Preprocessing] ✓ Got ideal answer (${answer?.length || 0} chars) and ${source_urls?.length || 0} sources`);
-          } else {
-            console.warn(`[Preprocessing] ⚠️ Failed to generate ideal answer: ${result.error}`);
-          }
+        // Generate evaluation criteria/ideal answer for ALL questions
+        // Technical: Gets ideal answer with sources
+        // Non-technical (HR): Gets evaluation criteria or puzzle answers
+        console.log(`[Preprocessing] Generating ${q.category === "technical" ? "ideal answer" : "evaluation criteria"} for ${q.id}...`);
+        const preprocessResult = await actions.preprocessQuestion(q.question);
+        if (preprocessResult.success && preprocessResult.answer) {
+          answer = preprocessResult.answer;
+          source_urls = preprocessResult.source_urls || [];
+          console.log(`[Preprocessing] ✓ Got answer/criteria (${answer?.length || 0} chars) and ${source_urls?.length || 0} sources`);
         } else {
-          console.log(`[Preprocessing] Skipping ideal answer generation for non-technical question ${q.id}`);
+          console.warn(`[Preprocessing] ⚠️ Failed to generate answer/criteria: ${preprocessResult.error}`);
         }
 
         console.log(`[Preprocessing] Generating TTS audio for ${q.id}...`);

@@ -40,6 +40,15 @@ export async function analyzeAnswer(
 
     const correctness = evaluation.score;
 
+    // CRITICAL: Only generate Q3 for Q1 or Q2 questions, NOT for existing Q3s
+    // This prevents infinite followup-of-followup chains
+    const isQ3Question = (currentQuestion as any).queueType === 'Q3';
+    
+    if (isQ3Question) {
+      console.log('[Tech Analysis] ⚠️ Current question is already a Q3 followup - will NOT generate another Q3 (prevents infinite chain)');
+      return { correctness, evaluation };
+    }
+
     // Only process Q2/Q3 logic if we have interviewId (to access database)
     if (!interviewId) {
       console.warn('[analyzeAnswer] No interviewId provided, skipping Q2/Q3 logic');

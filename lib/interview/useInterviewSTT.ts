@@ -118,6 +118,10 @@ export function useInterviewSTT(options: UseInterviewSTTOptions) {
           }
 
           // Start new pause detection timer (3 seconds of ACTUAL silence)
+          // IMPORTANT: This timer will be cleared if:
+          // 1. User speaks again (interim or final result)
+          // 2. User manually mutes (handled in media controls)
+          // 3. Answer is submitted
           pauseTimeoutRef.current = setTimeout(() => {
             // Only trigger if:
             // 1. User has actually spoken something
@@ -129,10 +133,10 @@ export function useInterviewSTT(options: UseInterviewSTTOptions) {
               !isUserMutedRef.current &&
               !isSubmittingRef.current
             ) {
-              console.log(`[STT] ⏸️ Pause detected (${pauseThreshold}ms of silence) - triggering submission`);
+              console.log(`[STT] ⏸️ Pause detected (${pauseThreshold}ms of TRUE SILENCE) - triggering submission`);
               onPauseDetected();
             } else if (isUserMutedRef.current) {
-              console.log(`[STT] ⏸️ Pause detected but user is muted - skipping submission`);
+              console.log(`[STT] ⏸️ ${pauseThreshold}ms passed but user is muted - NOT submitting`);
             }
           }, pauseThreshold);
         }

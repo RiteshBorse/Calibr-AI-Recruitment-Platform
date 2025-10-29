@@ -282,7 +282,11 @@ const InterviewProgress = () => {
           router.push(`/assessment/technical-interview/${assessmentData.technicalInterviewId}`);
           break;
         case 'hr':
-          router.push(`/assessment/hr/${assessmentData._id}`);
+          if (!assessmentData.hrInterviewId) {
+            toast.error('HR interview not configured');
+            return;
+          }
+          router.push(`/assessment/hr-interview/${assessmentData.hrInterviewId}`);
           break;
         default:
           toast.error('Unknown round type');

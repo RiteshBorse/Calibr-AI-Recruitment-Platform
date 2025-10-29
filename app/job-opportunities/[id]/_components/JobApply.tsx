@@ -36,7 +36,9 @@ export default function JobApply({ job, isLoading }: JobApplyProps) {
   const [confirmSend, setConfirmSend] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  // Fetch resumes - already filtered by profile.resumes array in the hook
   const { resumes, isLoading: resumesLoading } = useResumes();
+  
   const canConfirm = (resumes.length === 0 || selectedResume) && readTerms && confirmSend;
 
   if (isLoading) {
@@ -155,7 +157,7 @@ export default function JobApply({ job, isLoading }: JobApplyProps) {
               <h3 className="text-lg font-semibold text-white mb-4 text-center">
                 Select Resume
               </h3>
-              {resumesLoading ? (
+            {resumesLoading ? (
                 <div className="space-y-4">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="flex items-center gap-4">

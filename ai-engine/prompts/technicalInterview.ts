@@ -45,6 +45,27 @@ Question: ${question}
 Evaluation Criteria: ${idealAnswer}
 User's Answer: ${userAnswer}
 
+CRITICAL CONTEXT - SPEECH-TO-TEXT RECORDING:
+⚠️ This answer was recorded using Speech-To-Text (STT) technology, which means:
+- There may be spelling errors or inconsistencies (e.g., "their" vs "there", "to" vs "too")
+- Punctuation and sentence structure are AUTO-GENERATED and NOT controlled by the candidate
+- The candidate CANNOT add commas, periods, or proper formatting - it's all done by the STT algorithm
+- Run-on sentences or missing punctuation are limitations of the STT tool, NOT the candidate's communication skills
+- Focus on the CONTENT and MEANING of what they said, NOT grammatical perfection
+
+DO NOT penalize the candidate for:
+❌ Missing punctuation or run-on sentences (STT limitation)
+❌ Spelling inconsistencies or homophones (STT inaccuracy)
+❌ Lack of sentence breaks or paragraph structure (STT does not support this)
+❌ Minor grammatical errors that are clearly STT mistakes
+
+INSTEAD, evaluate based on:
+✅ Whether they addressed the question
+✅ The substance and authenticity of their response
+✅ Professional maturity in the IDEAS they expressed
+✅ Logical flow of thoughts (even if punctuation is missing)
+✅ Self-awareness and reflection in what they SAID
+
 IMPORTANT SCORING GUIDELINES:
 - Be LENIENT and GENEROUS with scoring - this is a real human under interview pressure
 - If the candidate shows UNDERSTANDING of the concept, score 50%+
@@ -69,21 +90,21 @@ For EXPERIENCE-BASED questions, consider:
 - Discusses real challenges/solutions? → 50%+ (normal flow triggers)
 - Demonstrates deep understanding? → 80%+ (next difficulty triggers)
 
-SCORING EXAMPLES:
+SCORING EXAMPLES (remember - ignore punctuation/formatting):
 - "I use JWT for auth" → 25-35% (basic understanding, very generic answer)
-- "I use JWT tokens to secure APIs, store them in httpOnly cookies" → 50-60% (good practical approach, moves to normal flow)
-- "JWT for stateless auth, refresh tokens for security, httpOnly cookies to prevent XSS, token rotation" → 70-85% (comprehensive, next difficulty triggers)
+- "I use JWT tokens to secure APIs store them in httpOnly cookies" → 50-60% (good practical approach despite missing punctuation, moves to normal flow)
+- "JWT for stateless auth refresh tokens for security httpOnly cookies to prevent XSS token rotation" → 70-85% (comprehensive despite run-on sentence, next difficulty triggers)
 
 Return ONLY a JSON object:
 {
   "correctness": 85,
-  "reason": "Brief explanation of scoring",
+  "reason": "Brief explanation of scoring (focus on technical CONTENT, not formatting/punctuation)",
   "route_action": "next_difficulty"
 }
 
 Where:
-- correctness: 0-100 score (be GENEROUS - real humans make mistakes under pressure)
-- reason: Brief explanation (1-2 sentences)
+- correctness: 0-100 score (be GENEROUS - real humans make mistakes under pressure, IGNORE STT formatting issues)
+- reason: Brief explanation (1-2 sentences, focus on technical substance not grammar)
 - route_action: "next_difficulty" (≥50%), "normal_flow" (20-50%), or "followup" (<20% - generates Q3 followup + deletes Q2s)`;
 
 export const buildQueue1Prompt = (

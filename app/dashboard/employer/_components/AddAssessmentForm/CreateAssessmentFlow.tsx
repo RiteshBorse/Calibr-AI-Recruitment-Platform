@@ -74,22 +74,21 @@ export default function CreateAssessmentFlow({
         jobTitle: jobTitle,
         timeLimit: 120, // Default time limit in minutes
         maxAttempts: completeData.general.maxAttempts || 1,
-        // Pass full coding data at top-level so server action can create Coding doc
-        ...(completeData.coding && { codingFullData: completeData.coding }),
         rounds: {
-          ...(completeData.aptitude && {
-            aptitude: {
+          ...(completeData.aptitude && { aptitude: { enabled: true, fullData: completeData.aptitude } }),
+          ...(completeData.coding && { coding: { enabled: true, fullData: completeData.coding } }),
+          ...(completeData.technicalInterview && {
+            technicalInterview: {
               enabled: true,
-              questionsCount: completeData.aptitude.totalQuestions,
-              timeLimit: completeData.aptitude.duration,
-              weightage: completeData.aptitude.passingScore,
-              topics: Object.keys(completeData.aptitude.sectionWeightage),
-              // Pass the full aptitude data for the backend
-              fullData: completeData.aptitude
-            },
+              fullData: completeData.technicalInterview
+            }
           }),
-          ...(completeData.coding && { coding: { enabled: true } }),
-          // Other rounds will be added when their forms are implemented
+          ...(completeData.hrInterview && {
+            hrInterview: {
+              enabled: true,
+              fullData: completeData.hrInterview
+            }
+          })
         },
       };
 

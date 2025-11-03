@@ -53,3 +53,6 @@ backend-services/
 # AI models (large files)
 /public/yolov8m/
 /public/face-api/
+
+# local Google Cloud service account (do not commit secrets)
+calibr-tts.json

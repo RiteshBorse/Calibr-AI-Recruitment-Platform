@@ -70,7 +70,7 @@ export function JobDetailView({ jobId, onBack }: JobDetailViewProps) {
       <Icon className="w-5 h-5 text-white mt-0.5" />
       <div>
         <p className="text-white/60 text-sm">{label}</p>
-        <p className="text-white font-medium">{value}</p>
+        <p className="text-white font-medium overflow-hidden text-ellipsis whitespace-nowrap">{value}</p>
       </div>
     </div>
   );
@@ -91,7 +91,7 @@ export function JobDetailView({ jobId, onBack }: JobDetailViewProps) {
           </Button>
           <div className="flex-1">
             <h2 className="text-2xl sm:text-3xl font-bold text-white">{jobDetails.title}</h2>
-            <p className="text-white/60 text-sm mt-1">
+            <p className="text-white/60 text-sm mt-1 overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
               {jobDetails.department} • {jobDetails.position}
             </p>
           </div>
@@ -202,11 +202,11 @@ export function JobDetailView({ jobId, onBack }: JobDetailViewProps) {
               <Card className="bg-white/5 border-white/10">
                 <CardHeader>
                   <CardTitle className="text-white">{jobDetails.assessment.title}</CardTitle>
-                  <CardDescription className="text-white/60">
+                  <CardDescription className="text-white/60 overflow-hidden text-ellipsis">
                     {jobDetails.assessment.description || 'No description provided'}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 overflow-hidden text-ellipsis">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-white/60 text-sm mb-2">Rounds Configured</p>

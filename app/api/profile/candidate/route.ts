@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import candidateProfile from "@/models/candidateProfile.model";
-import { withDatabase, createErrorResponse, logAction, logError } from "@/utils/action-helpers";
+import { withDatabase, createErrorResponse, logError } from "@/utils/action-helpers";
 import { validateSession } from "@/utils/auth-helpers";
 
 export async function GET() {
   try {
-    logAction("📡", "Candidate profile API called");
 
     const { success, candidateId, error } = await validateSession();
 
@@ -18,15 +17,11 @@ export async function GET() {
     }
 
     const result = await withDatabase(async () => {
-      logAction("🔍", "Fetching profile for candidate:", candidateId);
 
       const profile = await candidateProfile
         .findOne({ candidate: candidateId })
         .select("profileImage")
         .lean();
-
-      logAction("📦", "Profile found:", profile ? "Yes" : "No");
-      logAction("🖼️", "Profile image:", profile?.profileImage || "None");
 
       return {
         success: true,

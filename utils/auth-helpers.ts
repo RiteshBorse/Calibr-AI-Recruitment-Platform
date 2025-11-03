@@ -4,7 +4,6 @@ import { logAction, logError } from "@/utils/action-helpers";
 
 // Helper function for session validation
 export async function validateSession(): Promise<{ success: boolean; candidateId?: string; error?: string }> {
-  logAction("🔐", "Validating session...");
   const session = await getServerSession(authOptions);
   const candidateId = session?.user._id;
   
@@ -16,7 +15,6 @@ export async function validateSession(): Promise<{ success: boolean; candidateId
     };
   }
   
-  logAction("✅", "Session validated for user:", candidateId);
   return { success: true, candidateId };
 }
 

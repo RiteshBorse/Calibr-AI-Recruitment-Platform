@@ -53,7 +53,12 @@ export function CandidatesTable({ job, onBack }: CandidatesTableProps) {
   const { candidates, loading: candidatesLoading, error: candidatesError, refetch } = useFetchCandidatesForJob(job._id);
   
   // Determine roundId based on selected round type
-  const roundId = selectedRoundType === 'aptitude' ? job.assessment.aptitudeId : selectedRoundType === 'coding' ? job.assessment.codingRoundId : null;
+  const roundId = 
+    selectedRoundType === 'aptitude' ? job.assessment.aptitudeId :
+    selectedRoundType === 'coding' ? job.assessment.codingRoundId :
+    selectedRoundType === 'technicalInterview' ? job.assessment.technicalInterviewId :
+    selectedRoundType === 'hrInterview' ? job.assessment.hrInterviewId :
+    null;
   
   const { roundInfo, loading: roundLoading, refetch: refetchRoundInfo } = useFetchRoundInfo(
     roundId ? selectedRoundType : null,

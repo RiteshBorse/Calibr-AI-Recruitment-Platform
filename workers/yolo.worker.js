@@ -49,6 +49,11 @@ self.onmessage = async (e) => {
       model = await tf.loadGraphModel('/yolov8m/model.json');
       console.log('✅ YOLOv8m model loaded in worker');
       self.postMessage({ type: 'loaded' });
+      
+      // Notify main thread that YOLO is loaded
+      if (typeof self !== 'undefined') {
+        self.postMessage({ type: 'yolo-ready' });
+      }
     } catch (err) {
       console.error('❌ YOLO model load error:', err);
       self.postMessage({ type: 'error', error: err.message });

@@ -42,33 +42,19 @@ export interface AssessmentFormData {
   rounds: {
     aptitude?: {
       enabled: boolean;
-      questionsCount: number;
-      timeLimit: number;
-      weightage: number;
-      topics: string[];
-      fullData?: any; // Full aptitude data from the form
+      fullData?: any; 
     };
     coding?: {
       enabled: boolean;
-      questionsCount: number;
-      timeLimit: number;
-      weightage: number;
-      difficulty: 'easy' | 'medium' | 'hard';
-      languages: string[];
+      fullData?: any;
     };
     technicalInterview?: {
       enabled: boolean;
-      duration: number;
-      weightage: number;
-      topics: string[];
-      interviewers: string[];
+      fullData?: any; 
     };
     hrInterview?: {
       enabled: boolean;
-      duration: number;
-      weightage: number;
-      topics: string[];
-      interviewers: string[];
+      fullData?: any; 
     };
   };
 }
@@ -97,73 +83,17 @@ export function useAssessmentCreation() {
         },
 
         // Configure rounds based on enabled status
-        ...(data.rounds.aptitude?.enabled && {
-          aptitude: data.rounds.aptitude?.fullData || {
-            totalQuestions: data.rounds.aptitude.questionsCount, // Updated field name
-            addManualQuestion: false,
-            duration: data.rounds.aptitude.timeLimit,
-            passingScore: 60, // Updated field name
-            warnings: { fullscreen: 3, tabSwitch: 5, audio: 2 },
-            sectionWeightage: { logicalReasoning: 40, quantitative: 30, technical: 20, verbal: 10 },
-            candidateIds: [],
-            questionPool: {
-              logicalReasoning: Math.ceil(data.rounds.aptitude.questionsCount * 0.4),
-              quantitative: Math.ceil(data.rounds.aptitude.questionsCount * 0.3),
-              technical: Math.ceil(data.rounds.aptitude.questionsCount * 0.2),
-              verbal: Math.floor(data.rounds.aptitude.questionsCount * 0.1)
-            },
-            randomizeQuestions: true,
-            showResultImmediately: false,
-            allowReviewBeforeSubmit: true,
-            negativeMarking: false,
-            negativeMarkingPercentage: 25,
-            questionIds: [],
-            expiredQuestionIds: [],
-            sections: [
-              { name: 'Logical Reasoning', description: 'Problem solving and logical thinking', questionIds: [] },
-              { name: 'Quantitative', description: 'Mathematical and analytical skills', questionIds: [] },
-              { name: 'Technical', description: 'Technical knowledge assessment', questionIds: [] },
-              { name: 'Verbal', description: 'Language and communication skills', questionIds: [] }
-            ],
-            status: 'inactive',
-            currentQuestionIndex: 0
-          }
-        }),
+        ...(data.rounds.aptitude?.enabled && data.rounds.aptitude.fullData ? { aptitude: data.rounds.aptitude.fullData } : {}),
 
-        // Pass through codingFullData when present (from CreateAssessmentFlow)
-        ...((data as any).codingFullData ? { codingFullData: (data as any).codingFullData } : {}),
+        // Pass through coding fullData when present (from CreateAssessmentFlow)
+        ...(data.rounds.coding?.enabled && (data.rounds.coding.fullData ? { coding: data.rounds.coding.fullData } : {})),
 
         ...(data.rounds.technicalInterview?.enabled && {
-          technicalInterview: {
-            duration: data.rounds.technicalInterview.duration,
-            interviewerIds: [],
-            candidateIds: [],
-            score: { min: 0, max: 100, required: 60 },
-            evaluationCriteria: {
-              technicalKnowledge: 40,
-              problemSolving: 30,
-              communication: 20,
-              codeQuality: 10
-            },
-            recordSession: false
-          }
+          technicalInterview: data.rounds.technicalInterview.fullData || undefined
         }),
 
         ...(data.rounds.hrInterview?.enabled && {
-          hrInterview: {
-            duration: data.rounds.hrInterview.duration,
-            interviewerIds: [],
-            candidateIds: [],
-            score: { min: 0, max: 100, required: 60 },
-            evaluationCriteria: {
-              communication: 30,
-              culturalFit: 25,
-              motivation: 20,
-              leadership: 15,
-              teamwork: 10
-            },
-            recordSession: false
-          }
+          hrInterview: data.rounds.hrInterview.fullData || undefined
         }),
 
         overallPassingCriteria: {

@@ -16,9 +16,15 @@ export interface Assessment extends Document {
   };
 
   // Aptitude Round Configuration
-    aptitudeId?: mongoose.Types.ObjectId;
+  aptitudeId?: mongoose.Types.ObjectId;
   // Coding Round Configuration (reference)
   codingRoundId?: mongoose.Types.ObjectId;
+
+  // Technical Interview Round Configuration (reference)
+  technicalInterviewId?: mongoose.Types.ObjectId;
+
+  // HR Interview Round Configuration (reference)
+  hrInterviewId?: mongoose.Types.ObjectId;
 
   // Overall assessment settings
   overallPassingCriteria: {
@@ -110,6 +116,14 @@ const AssessmentSchema: Schema = new Schema(
     codingRoundId: {
       type: Schema.Types.ObjectId,
       ref: "coding"
+    },
+    technicalInterviewId: {
+      type: Schema.Types.ObjectId,
+      ref: "technicalinterview"
+    },
+    hrInterviewId: {
+      type: Schema.Types.ObjectId,
+      ref: "hrinterview"
     },
 
     overallPassingCriteria: {

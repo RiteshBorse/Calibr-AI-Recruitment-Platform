@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { AssessmentGeneralData } from './GeneralForm';
 import { AptitudeFormData } from './AptitudeForm';
 import AptitudeForm from './AptitudeForm';
 import CodingForm, { CodingFormData } from './CodingForm';
+import TechnicalInterviewForm, { TechnicalInterviewFormData } from './TechnicalInterviewForm';
+import HRInterviewForm, { HRInterviewFormData } from './HRInterviewForm';
 
 interface FormConfigProps {
   generalData: AssessmentGeneralData;
@@ -20,7 +21,8 @@ export interface CompleteAssessmentData {
   general: AssessmentGeneralData;
   aptitude?: AptitudeFormData;
   coding?: CodingFormData;
-  // Future: technicalInterview, hrInterview
+  technicalInterview?: TechnicalInterviewFormData;
+  hrInterview?: HRInterviewFormData;
 }
 
 type FormStep = 'aptitude' | 'coding' | 'technicalInterview' | 'hrInterview' | 'review';
@@ -56,6 +58,26 @@ export default function FormConfig({
 
   const handleCodingNext = (codingData: CodingFormData) => {
     const updatedData = { ...completedForms, coding: codingData };
+    setCompletedForms(updatedData);
+    if (generalData.toConductRounds.technicalInterview) {
+      setCurrentStep('technicalInterview');
+      return;
+    }
+    handleFinalSubmit(updatedData as CompleteAssessmentData);
+  };
+
+  const handleTechnicalNext = (technicalData: TechnicalInterviewFormData) => {
+    const updatedData = { ...completedForms, technicalInterview: technicalData };
+    setCompletedForms(updatedData);
+    if (generalData.toConductRounds.hrInterview) {
+      setCurrentStep('hrInterview');
+      return;
+    }
+    handleFinalSubmit(updatedData as CompleteAssessmentData);
+  };
+
+  const handleHrNext = (hrData: HRInterviewFormData) => {
+    const updatedData = { ...completedForms, hrInterview: hrData };
     setCompletedForms(updatedData);
     handleFinalSubmit(updatedData as CompleteAssessmentData);
   };
@@ -137,47 +159,11 @@ export default function FormConfig({
       )}
 
       {currentStep === 'technicalInterview' && generalData.toConductRounds.technicalInterview && (
-        <Card className="bg-[#171726] border-0">
-          <CardHeader>
-            <CardTitle className="text-white">Technical Interview Configuration</CardTitle>
-            <CardDescription className="text-white/60">
-              Coming soon - Technical interview configuration
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <p className="text-white/60">This form will be implemented next</p>
-              <Button 
-                onClick={() => onNext(completedForms as CompleteAssessmentData)}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Skip for now
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <TechnicalInterviewForm onBack={goBack} onNext={handleTechnicalNext} />
       )}
 
       {currentStep === 'hrInterview' && generalData.toConductRounds.hrInterview && (
-        <Card className="bg-[#171726] border-0">
-          <CardHeader>
-            <CardTitle className="text-white">HR Interview Configuration</CardTitle>
-            <CardDescription className="text-white/60">
-              Coming soon - HR interview configuration
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <p className="text-white/60">This form will be implemented next</p>
-              <Button 
-                onClick={() => onNext(completedForms as CompleteAssessmentData)}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Skip for now
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <HRInterviewForm onBack={goBack} onNext={handleHrNext} />
       )}
     </div>
   );

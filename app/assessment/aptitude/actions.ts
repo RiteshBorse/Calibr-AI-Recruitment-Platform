@@ -2,7 +2,7 @@
 import { connectToDatabase } from '@/utils/connectDb'
 import Aptitude from '@/models/aptitude.model'
 import Candidate from '@/models/candidate.model'
-import TestResult from '@/models/testResult.model'
+import TestResult from '@/models/aptitudeEvaluation.model'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import questionsData from './aptitude_questions.json'

@@ -25,7 +25,7 @@ const apiCall = async (request: string, fileData?: { base64: string; mimeType: s
         ];
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         contents: [
           {

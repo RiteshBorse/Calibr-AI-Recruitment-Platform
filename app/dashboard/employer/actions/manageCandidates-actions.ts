@@ -6,6 +6,8 @@ import ApplicationModel from '@/models/application.model';
 import CandidateModel from '@/models/candidate.model';
 import AptitudeModel from '@/models/aptitude.model';
 import CodingModel from '@/models/coding.model';
+import TechnicalInterviewModel from '@/models/technicalInterview.model';
+import HRInterviewModel from '@/models/hrInterview.model';
 import mongoose from 'mongoose';
 import {
   safeAction,
@@ -29,6 +31,8 @@ export interface JobWithAssessment {
     status: string;
     aptitudeId?: string;
     codingRoundId?: string;
+    technicalInterviewId?: string;
+    hrInterviewId?: string;
   };
 }
 
@@ -110,7 +114,9 @@ export async function fetchJobsWithAssessments(): Promise<ActionResponse<JobWith
               title: assessment.title,
               status: assessment.status,
               aptitudeId: assessment.aptitudeId?.toString(),
-              codingRoundId: (assessment as any).codingRoundId?.toString(),
+              codingRoundId: assessment.codingRoundId?.toString(),
+              technicalInterviewId: assessment.technicalInterviewId?.toString(),
+              hrInterviewId: assessment.hrInterviewId?.toString(),
             }
           });
         }
@@ -239,8 +245,45 @@ export async function fetchRoundInfo(
         });
       }
 
-      // For future rounds (technical, HR)
-      return createErrorResponse(`Round type ${roundType} not yet implemented`);
+      if (roundType === 'technicalInterview') {
+        const technicalInterview = await TechnicalInterviewModel.findById(roundId).lean();
+        if (!technicalInterview) {
+          return createErrorResponse('Technical interview round not found');
+        }
+        const assessment = await AssessmentModel.findOne({
+          _id: technicalInterview.assessmentId,
+          employer: employerId
+        }).lean();
+        if (!assessment) {
+          return createErrorResponse('Unauthorized access to this round');
+        }
+        return createSuccessResponse('Round info fetched', {
+          type: 'technicalInterview',
+          id: roundId,
+          alreadySelectedCount: 0 // Technical interviews don't pre-select candidates in the same way
+        });
+      }
+
+      if (roundType === 'hrInterview') {
+        const hrInterview = await HRInterviewModel.findById(roundId).lean();
+        if (!hrInterview) {
+          return createErrorResponse('HR interview round not found');
+        }
+        const assessment = await AssessmentModel.findOne({
+          _id: hrInterview.assessmentId,
+          employer: employerId
+        }).lean();
+        if (!assessment) {
+          return createErrorResponse('Unauthorized access to this round');
+        }
+        return createSuccessResponse('Round info fetched', {
+          type: 'hrInterview',
+          id: roundId,
+          alreadySelectedCount: 0 // HR interviews don't pre-select candidates in the same way
+        });
+      }
+
+      return createErrorResponse(`Unknown round type: ${roundType}`);
     });
   });
 }
@@ -377,8 +420,121 @@ export async function updateCandidatesForRound(
         );
       }
 
-      // For future rounds (technical, HR)
-      return createErrorResponse(`Round type ${roundType} not yet implemented`);
+      if (roundType === 'technicalInterview') {
+        const technicalInterview = await TechnicalInterviewModel.findById(roundId);
+        if (!technicalInterview) {
+          return createErrorResponse('Technical interview round not found');
+        }
+
+        // Verify the assessment belongs to this employer
+        const assessment = await AssessmentModel.findOne({
+          _id: technicalInterview.assessmentId,
+          employer: employerId
+        });
+
+        if (!assessment) {
+          return createErrorResponse('Unauthorized access to this round');
+        }
+
+        // Verify all candidates exist
+        const candidateObjectIds = candidateIds.map(id => new mongoose.Types.ObjectId(id));
+        const candidatesCount = await CandidateModel.countDocuments({
+          _id: { $in: candidateObjectIds }
+        });
+
+        if (candidatesCount !== candidateIds.length) {
+          return createErrorResponse('Some candidate IDs are invalid');
+        }
+
+        // Add candidates to technicalInterview.candidateIds array
+        await TechnicalInterviewModel.findByIdAndUpdate(
+          roundId,
+          {
+            $addToSet: { candidateIds: { $each: candidateObjectIds } }
+          }
+        );
+
+        // Update application rounds.technicalInterview status to 'shortlisted' for selected candidates
+        const updateResult = await ApplicationModel.updateMany(
+          {
+            candidateId: { $in: candidateObjectIds },
+            jobId: assessment.jobOpportunity
+          },
+          {
+            $set: {
+              status: 'shortlisted',
+              'rounds.technicalInterview': 'shortlisted'
+            }
+          }
+        );
+
+        return createSuccessResponse(
+          `Successfully selected ${candidateIds.length} candidates for technical interview round and updated application status`,
+          {
+            updatedCount: candidateIds.length,
+            applicationsUpdated: updateResult.modifiedCount
+          }
+        );
+      }
+
+      if (roundType === 'hrInterview') {
+        const hrInterview = await HRInterviewModel.findById(roundId);
+        if (!hrInterview) {
+          return createErrorResponse('HR interview round not found');
+        }
+
+        // Verify the assessment belongs to this employer
+        const assessment = await AssessmentModel.findOne({
+          _id: hrInterview.assessmentId,
+          employer: employerId
+        });
+
+        if (!assessment) {
+          return createErrorResponse('Unauthorized access to this round');
+        }
+
+        // Verify all candidates exist
+        const candidateObjectIds = candidateIds.map(id => new mongoose.Types.ObjectId(id));
+        const candidatesCount = await CandidateModel.countDocuments({
+          _id: { $in: candidateObjectIds }
+        });
+
+        if (candidatesCount !== candidateIds.length) {
+          return createErrorResponse('Some candidate IDs are invalid');
+        }
+
+        // Add candidates to hrInterview.candidateIds array
+        await HRInterviewModel.findByIdAndUpdate(
+          roundId,
+          {
+            $addToSet: { candidateIds: { $each: candidateObjectIds } }
+          }
+        );
+
+        // Update application rounds.hrInterview status to 'shortlisted' for selected candidates
+        const updateResult = await ApplicationModel.updateMany(
+          {
+            candidateId: { $in: candidateObjectIds },
+            jobId: assessment.jobOpportunity
+          },
+          {
+            $set: {
+              status: 'shortlisted',
+              'rounds.hrInterview': 'shortlisted'
+            }
+          }
+        );
+
+        return createSuccessResponse(
+          `Successfully selected ${candidateIds.length} candidates for HR interview round and updated application status`,
+          {
+            updatedCount: candidateIds.length,
+            applicationsUpdated: updateResult.modifiedCount
+          }
+        );
+      }
+
+      return createErrorResponse(`Unknown round type: ${roundType}`);
     });
   });
 }

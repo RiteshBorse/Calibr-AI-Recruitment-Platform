@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,21 +19,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Briefcase, Users, Calendar, MapPin, DollarSign, FileText } from "lucide-react";
+import {
+  Briefcase,
+  Users,
+  Calendar,
+  MapPin,
+  DollarSign,
+  FileText,
+} from "lucide-react";
 import { useFetchEmployerJobs } from "../../hooks";
 import type { JobOpening } from "../../actions";
 import { JobDetailView } from "./JobDetailView";
 
 export function MyOpenings() {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all');
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "draft" | "archived"
+  >("all");
   const [selectedJob, setSelectedJob] = useState<JobOpening | null>(null);
-  
+
   const { jobs, loading, error, refetch } = useFetchEmployerJobs(statusFilter);
 
   // If a job is selected, show the detail view
   if (selectedJob) {
     return (
-      <JobDetailView 
+      <JobDetailView
         jobId={selectedJob._id}
         onBack={() => {
           setSelectedJob(null);
@@ -52,7 +67,10 @@ export function MyOpenings() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value: any) => setStatusFilter(value)}
+            >
               <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-white">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -116,38 +134,48 @@ export function MyOpenings() {
                 className="bg-white/5 border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
                 onClick={() => setSelectedJob(job)}
               >
-                <CardHeader>
-                  <div className="space-y-2">
-                    <CardTitle className="text-white group-hover:text-violet-400 transition-colors truncate">
-                      {job.title}
-                    </CardTitle>
-                    <CardDescription className="text-white/60 truncate">
-                      {job.department} • {job.position}
-                    </CardDescription>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Badge
-                        variant={job.employmentType === 'full-time' ? 'default' : 'secondary'}
-                        className="capitalize text-xs"
-                      >
-                        {job.employmentType}
-                      </Badge>
-                      {job.hasAssessment && (
-                        <Badge
-                          variant={
-                            job.assessmentStatus === 'active'
-                              ? 'default'
-                              : job.assessmentStatus === 'draft'
-                              ? 'secondary'
-                              : 'outline'
-                          }
-                          className="capitalize text-xs text-black bg-white/90 border-white"
-                        >
-                          {job.assessmentStatus}
-                        </Badge>
-                      )}
+                <CardHeader className="space-y-2 overflow-hidden">
+                  <CardTitle className="text-white group-hover:text-violet-400 transition-colors truncate">
+                    {job.title}
+                  </CardTitle>
+
+                  <CardDescription className="text-white/60 mt-1 w-full">
+                    <div className="block max-w-full truncate overflow-hidden text-ellipsis">
+                      {job.department}
                     </div>
+                    <div className="block max-w-full truncate overflow-hidden text-ellipsis">
+                      {job.position}
+                    </div>
+                  </CardDescription>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Badge
+                      variant={
+                        job.employmentType === "full-time"
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="capitalize text-xs"
+                    >
+                      {job.employmentType}
+                    </Badge>
+                    {job.hasAssessment && (
+                      <Badge
+                        variant={
+                          job.assessmentStatus === "active"
+                            ? "default"
+                            : job.assessmentStatus === "draft"
+                            ? "secondary"
+                            : "outline"
+                        }
+                        className="capitalize text-xs text-black bg-white/90 border-white"
+                      >
+                        {job.assessmentStatus}
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
+
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-2 text-white/60">
@@ -165,7 +193,7 @@ export function MyOpenings() {
                       <DollarSign className="w-4 h-4" />
                       <span>
                         {job.salaryMin && `$${job.salaryMin.toLocaleString()}`}
-                        {job.salaryMin && job.salaryMax && ' - '}
+                        {job.salaryMin && job.salaryMax && " - "}
                         {job.salaryMax && `$${job.salaryMax.toLocaleString()}`}
                       </span>
                     </div>
@@ -174,17 +202,24 @@ export function MyOpenings() {
                   {job.deadline && (
                     <div className="flex items-center gap-2 text-sm text-white/60">
                       <Calendar className="w-4 h-4 text-white" />
-                      <span>Deadline: {new Date(job.deadline).toLocaleDateString()}</span>
+                      <span>
+                        Deadline: {new Date(job.deadline).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
 
                   <div className="pt-3 border-t border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs text-white/40">
                       <FileText className="w-3 h-3" />
-                      <span>{job.hasAssessment ? 'Has Assessment' : 'No Assessment'}</span>
+                      <span>
+                        {job.hasAssessment ? "Has Assessment" : "No Assessment"}
+                      </span>
                     </div>
-                    <Badge variant="outline" className="text-xs bg-blue-500/20 text-blue-300 border-blue-400/30">
-                      {job.openings} Opening{job.openings > 1 ? 's' : ''}
+                    <Badge
+                      variant="outline"
+                      className="text-xs bg-blue-500/20 text-blue-300 border-blue-400/30"
+                    >
+                      {job.openings} Opening{job.openings > 1 ? "s" : ""}
                     </Badge>
                   </div>
 

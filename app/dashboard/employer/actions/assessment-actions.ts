@@ -3,6 +3,8 @@
 import AssessmentModel, { Assessment } from '@/models/assesment.model';
 import AptitudeModel, { Aptitude } from '@/models/aptitude.model';
 import CodingModel from '@/models/coding.model';
+import TechnicalInterviewModel from '@/models/technicalInterview.model';
+import HRInterviewModel from '@/models/hrInterview.model';
 import JobOpportunityModel from '@/models/jobOpportunity.model';
 import { Document } from 'mongoose';
 import mongoose from 'mongoose';
@@ -195,6 +197,34 @@ async function createCodingRoundForAssessment(codingData: any): Promise<mongoose
 }
 
 /**
+ * Creates a technical interview round and returns its ID
+ */
+async function createTechnicalInterviewForAssessment(techData: any): Promise<mongoose.Types.ObjectId> {
+  const prepared = {
+    ...techData,
+    assessmentId: null,
+    status: techData?.status || 'inactive'
+  };
+  const doc = new TechnicalInterviewModel(prepared);
+  const saved = await doc.save();
+  return saved._id as mongoose.Types.ObjectId;
+}
+
+/**
+ * Creates an HR interview round and returns its ID
+ */
+async function createHrInterviewForAssessment(hrData: any): Promise<mongoose.Types.ObjectId> {
+  const prepared = {
+    ...hrData,
+    assessmentId: null,
+    status: hrData?.status || 'inactive'
+  };
+  const doc = new HRInterviewModel(prepared);
+  const saved = await doc.save();
+  return saved._id as mongoose.Types.ObjectId;
+}
+
+/**
  * Cleans assessment data by removing embedded objects and disabled rounds
  * Single responsibility: Data sanitization
  */
@@ -209,6 +239,22 @@ function sanitizeAssessmentData(assessmentData: any): any {
   // Remove aptitudeId if aptitude round is not enabled
   if (assessmentData.toConductRounds && !assessmentData.toConductRounds.aptitude) {
     delete cleanData.aptitudeId;
+  }
+
+  // Remove embedded technical/hr objects (we store only reference IDs)
+  if (cleanData.technicalInterview) {
+    delete cleanData.technicalInterview;
+  }
+  if (cleanData.hrInterview) {
+    delete cleanData.hrInterview;
+  }
+
+  // Remove technical/hr IDs if disabled
+  if (assessmentData.toConductRounds && !assessmentData.toConductRounds.technicalInterview) {
+    delete cleanData.technicalInterviewId;
+  }
+  if (assessmentData.toConductRounds && !assessmentData.toConductRounds.hrInterview) {
+    delete cleanData.hrInterviewId;
   }
   
   return cleanData;
@@ -273,16 +319,31 @@ export async function createAssessment(assessmentData: AssessmentCreationData): 
       // Step 4: Handle round creations (aptitude/coding) if enabled
       let aptitudeId: mongoose.Types.ObjectId | undefined;
       let codingId: mongoose.Types.ObjectId | undefined;
+      let technicalId: mongoose.Types.ObjectId | undefined;
+      let hrId: mongoose.Types.ObjectId | undefined;
       
       if (assessmentData.toConductRounds?.aptitude && (assessmentData as any).aptitude) {
+        // Support fullData pattern for aptitude (already sanitized on client)
         aptitudeId = await createAptitudeRoundForAssessment((assessmentData as any).aptitude);
         processedData.aptitudeId = aptitudeId;
       }
 
-      // Accept optional codingFullData passed from client flow
-      if ((assessmentData as any).codingFullData && assessmentData.toConductRounds?.coding) {
-        codingId = await createCodingRoundForAssessment((assessmentData as any).codingFullData);
+      // Accept coding fullData passed from client flow
+      if ((assessmentData as any).coding && assessmentData.toConductRounds?.coding) {
+        codingId = await createCodingRoundForAssessment((assessmentData as any).coding);
         (processedData as any).codingRoundId = codingId;
+      }
+
+      // Create technical interview when provided via fullData
+      if ((assessmentData as any).technicalInterview && assessmentData.toConductRounds?.technicalInterview) {
+        technicalId = await createTechnicalInterviewForAssessment((assessmentData as any).technicalInterview);
+        (processedData as any).technicalInterviewId = technicalId;
+      }
+
+      // Create HR interview when provided via fullData
+      if ((assessmentData as any).hrInterview && assessmentData.toConductRounds?.hrInterview) {
+        hrId = await createHrInterviewForAssessment((assessmentData as any).hrInterview);
+        (processedData as any).hrInterviewId = hrId;
       }
       
       // Step 5: Sanitize assessment data (remove embedded objects and disabled rounds)
@@ -299,6 +360,20 @@ export async function createAssessment(assessmentData: AssessmentCreationData): 
       if (codingId) {
         await CodingModel.findByIdAndUpdate(
           codingId,
+          { assessmentId: savedAssessment._id },
+          { runValidators: true }
+        );
+      }
+      if (technicalId) {
+        await TechnicalInterviewModel.findByIdAndUpdate(
+          technicalId,
+          { assessmentId: savedAssessment._id },
+          { runValidators: true }
+        );
+      }
+      if (hrId) {
+        await HRInterviewModel.findByIdAndUpdate(
+          hrId,
           { assessmentId: savedAssessment._id },
           { runValidators: true }
         );

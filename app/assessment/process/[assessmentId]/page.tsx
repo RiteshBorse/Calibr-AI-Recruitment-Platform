@@ -36,6 +36,7 @@ const InterviewProgress = () => {
   const [assessmentData, setAssessmentData] = useState<AssessmentDetails | null>(null);
   const [isLoadingAssessment, setIsLoadingAssessment] = useState(true);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
   
   // System check validation states
   const [isValidatingSystemCheck, setIsValidatingSystemCheck] = useState(true);
@@ -56,6 +57,34 @@ const InterviewProgress = () => {
         const result = await fetchAssessmentDetails(params.assessmentId as string);
         if (result.success && result.data) {
           setAssessmentData(result.data);
+          
+          // Determine current round based on application round statuses
+          const rounds = result.data.applicationDetails?.rounds;
+          const toConductRounds = result.data.toConductRounds;
+          
+          if (rounds && toConductRounds) {
+            // Build list of enabled rounds only
+            const roundOrder = ['aptitude', 'coding', 'technicalInterview', 'hrInterview'] as const;
+            const enabledRoundStatuses = roundOrder
+              .filter(roundType => toConductRounds[roundType])
+              .map(roundType => ({
+                type: roundType,
+                status: rounds[roundType]
+              }));
+            
+            // Find first non-completed enabled round
+            let currentIndex = 0;
+            for (let i = 0; i < enabledRoundStatuses.length; i++) {
+              if (enabledRoundStatuses[i].status === 'completed') {
+                currentIndex++;
+              } else {
+                // This is the current round (first non-completed)
+                break;
+              }
+            }
+            
+            setCurrentRoundIndex(currentIndex);
+          }
         } else {
           setAssessmentError(result.message || 'Failed to load assessment');
         }
@@ -173,8 +202,42 @@ const InterviewProgress = () => {
   };
 
   const interviewRounds = generateRounds();
-  const currentRound = 0; // Start from first round
   const isMockMode = assessmentData?.status === 'draft'; // Mock mode for draft assessments
+  const currentRound = currentRoundIndex; // Use dynamic current round index
+
+  // Helper function to get the actual status of a round from application data
+  const getActualRoundStatus = (roundType: string): 'pending' | 'shortlisted' | 'rejected' | 'completed' => {
+    const rounds = assessmentData?.applicationDetails?.rounds;
+    if (!rounds) return 'pending';
+    
+    const typeMap: Record<string, keyof typeof rounds> = {
+      'aptitude': 'aptitude',
+      'coding': 'coding',
+      'technical': 'technicalInterview',
+      'hr': 'hrInterview'
+    };
+    
+    const mappedType = typeMap[roundType];
+    return mappedType ? rounds[mappedType] : 'pending';
+  };
+
+  // Helper function to determine what action button to show
+  const getRoundActionText = (roundType: string): string => {
+    const status = getActualRoundStatus(roundType);
+    
+    if (status === 'completed') {
+      return 'View Results';
+    } else if (status === 'shortlisted') {
+      return 'Start Round';
+    } else if (status === 'pending') {
+      // Check if there's any evaluation data (indicates in-progress)
+      return 'Start Round'; // TODO: Check for partial completion to show "Resume"
+    } else if (status === 'rejected') {
+      return 'Not Eligible';
+    }
+    
+    return 'Start Round';
+  };
 
   const handleStartRound = async (roundIndex: number) => {
     if (!assessmentData) {
@@ -210,10 +273,20 @@ const InterviewProgress = () => {
           router.push(`/assessment/coding/${assessmentData.codingDetails?._id}`);
           break;
         case 'technical':
-          router.push(`/assessment/technical/${assessmentData._id}`);
+          if (!assessmentData.technicalInterviewId) {
+            toast.error('Technical interview not configured');
+            return;
+          }
+          console.log('Technical Interview ID:', assessmentData.technicalInterviewId);
+          console.log('Type:', typeof assessmentData.technicalInterviewId);
+          router.push(`/assessment/technical-interview/${assessmentData.technicalInterviewId}`);
           break;
         case 'hr':
-          router.push(`/assessment/hr/${assessmentData._id}`);
+          if (!assessmentData.hrInterviewId) {
+            toast.error('HR interview not configured');
+            return;
+          }
+          router.push(`/assessment/hr-interview/${assessmentData.hrInterviewId}`);
           break;
         default:
           toast.error('Unknown round type');
@@ -227,9 +300,12 @@ const InterviewProgress = () => {
   const enabledRounds = interviewRounds.filter(round => round.isEnabled);
 
   const getRoundIcon = (index: number, type: string) => {
-    if (index < currentRound) {
+    const actualStatus = getActualRoundStatus(type);
+    
+    if (actualStatus === 'completed') {
       return <CheckCircle className="h-6 w-6 text-emerald-400" />;
-    } else if (index === currentRound || isMockMode) {
+    } else if (actualStatus === 'shortlisted' || actualStatus === 'pending') {
+      // Show appropriate icon for active/available rounds
       switch(type) {
         case 'aptitude': return <Brain className="h-6 w-6 text-indigo-400" />;
         case 'coding': return <Code className="h-6 w-6 text-blue-400" />;
@@ -237,19 +313,41 @@ const InterviewProgress = () => {
         case 'hr': return <Users className="h-6 w-6 text-rose-400" />;
         default: return <Play className="h-6 w-6 text-indigo-400" />;
       }
+    } else if (actualStatus === 'rejected') {
+      return <Lock className="h-6 w-6 text-red-400" />;
     } else {
       return <Lock className="h-6 w-6 text-white/40" />;
     }
   };
 
   const getRoundStatus = (index: number) => {
-    if (index < currentRound) return 'completed';
-    if (index === currentRound || isMockMode) return 'active';
+    const round = enabledRounds[index];
+    if (!round) return 'locked';
+    
+    const actualStatus = getActualRoundStatus(round.type);
+    
+    if (actualStatus === 'completed') return 'completed';
+    if (actualStatus === 'shortlisted' || (actualStatus === 'pending' && isMockMode)) return 'active';
+    if (actualStatus === 'rejected') return 'rejected';
+    
+    // For sequential rounds: only current round is active
+    if (index === currentRound) return 'active';
+    
     return 'locked';
   };
 
   const canStartRound = (index: number) => {
-    return isMockMode || index === currentRound;
+    if (isMockMode) return true;
+    
+    const round = enabledRounds[index];
+    if (!round) return false;
+    
+    const actualStatus = getActualRoundStatus(round.type);
+    
+    // Can start if: completed (view results), shortlisted, or current pending round
+    return actualStatus === 'completed' || 
+           actualStatus === 'shortlisted' || 
+           (actualStatus === 'pending' && index === currentRound);
   };
 
   const getRoundTypeDescription = (type: string, roundIndex: number) => {
@@ -495,14 +593,20 @@ const InterviewProgress = () => {
 
         {/* Enhanced Current Round Focus */}
         {enabledRounds.map((round, index) => {
-          if (index === currentRound || (isMockMode && index === 0)) {
-            const status = getRoundStatus(index);
-            const isClickable = canStartRound(index);
-            
+          const status = getRoundStatus(index);
+          const actualStatus = getActualRoundStatus(round.type);
+          const isClickable = canStartRound(index);
+          const actionText = getRoundActionText(round.type);
+          
+          // Show current active round or first round in mock mode
+          // Also show if shortlisted (skipped previous rounds)
+          if (index === currentRound || (isMockMode && index === 0) || actualStatus === 'shortlisted') {
             return (
               <div key={round.id} className="mb-12">
                 <h2 className="text-2xl font-bold text-white mb-6 text-center">
-                  {status === 'completed' ? 'Completed: ' : 'Current: '}
+                  {status === 'completed' ? 'Completed: ' : 
+                   actualStatus === 'shortlisted' ? 'Shortlisted for: ' : 
+                   'Current: '}
                   <span className="bg-gradient-to-r from-indigo-300 to-rose-300 bg-clip-text text-transparent">
                     {round.name}
                   </span>
@@ -511,6 +615,7 @@ const InterviewProgress = () => {
                 <div 
                   className={`bg-white/5 backdrop-blur-sm rounded-2xl border transition-all duration-300 p-8 ${
                     status === 'completed' ? 'border-emerald-500/30' :
+                    status === 'rejected' ? 'border-red-500/30' :
                     status === 'active' ? 'border-indigo-500/50 shadow-lg shadow-indigo-500/20' :
                     'border-white/10'
                   } ${isClickable ? 'hover:scale-102 hover:shadow-xl cursor-pointer' : 'opacity-80'}`}
@@ -520,11 +625,12 @@ const InterviewProgress = () => {
                     <div className="flex items-center space-x-6">
                       <div className={`relative w-20 h-20 rounded-xl flex items-center justify-center border-2 ${
                         status === 'completed' ? 'border-emerald-500/30 bg-emerald-500/10' :
+                        status === 'rejected' ? 'border-red-500/30 bg-red-500/10' :
                         status === 'active' ? 'border-indigo-500/30 bg-indigo-500/10' :
                         'border-white/20 bg-white/5'
                       }`}>
                         {getRoundIcon(index, round.type)}
-                        {status === 'active' && (
+                        {status === 'active' && actualStatus !== 'rejected' && (
                           <div className="absolute -top-2 -right-2 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center">
                             <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                           </div>
@@ -542,10 +648,14 @@ const InterviewProgress = () => {
                           )}
                           <span className={`px-3 py-1 text-sm rounded-full font-medium ${
                             status === 'completed' ? 'bg-emerald-500/20 text-emerald-300' :
+                            status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                            actualStatus === 'shortlisted' ? 'bg-blue-500/20 text-blue-300' :
                             status === 'active' ? 'bg-indigo-500/20 text-indigo-300' :
                             'bg-white/10 text-white/60'
                           }`}>
                             {status === 'completed' ? 'Completed' :
+                             status === 'rejected' ? 'Not Eligible' :
+                             actualStatus === 'shortlisted' ? 'Shortlisted' :
                              status === 'active' ? (isMockMode ? 'Available' : 'Current Round') :
                              'Locked'}
                           </span>
@@ -553,14 +663,14 @@ const InterviewProgress = () => {
                       </div>
                     </div>
 
-                    {isClickable && (
+                    {isClickable && actualStatus !== 'rejected' && (
                       <button className={`px-6 py-3 rounded-xl font-medium flex items-center ${
                         status === 'completed' ? 
                           'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30' : 
                           'bg-gradient-to-r from-indigo-500 to-rose-500 text-white hover:from-indigo-600 hover:to-rose-600'
                       }`}>
                         <span className="mr-2">
-                          {status === 'completed' ? 'Review Results' : 'Start Now'}
+                          {actionText}
                         </span>
                         <Play className="h-5 w-5" />
                       </button>
@@ -578,6 +688,20 @@ const InterviewProgress = () => {
                         Completed on {getFormattedDate()}
                       </div>
                     )}
+                    
+                    {actualStatus === 'shortlisted' && status !== 'completed' && (
+                      <div className="mt-4 flex items-center text-blue-400">
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        You&apos;ve been shortlisted for this round
+                      </div>
+                    )}
+                    
+                    {actualStatus === 'rejected' && (
+                      <div className="mt-4 flex items-center text-red-400">
+                        <Lock className="h-5 w-5 mr-2" />
+                        Unfortunately, you did not qualify for this round
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -590,7 +714,9 @@ const InterviewProgress = () => {
         <div className="grid md:grid-cols-2 gap-6">
           {enabledRounds.map((round, index) => {
             const status = getRoundStatus(index);
+            const actualStatus = getActualRoundStatus(round.type);
             const isClickable = canStartRound(index);
+            const actionText = getRoundActionText(round.type);
             
             return (
               <div
@@ -602,6 +728,8 @@ const InterviewProgress = () => {
               >
                 <div className={`h-full bg-white/5 backdrop-blur-sm rounded-2xl border p-6 ${
                   status === 'completed' ? 'border-emerald-500/20 bg-emerald-500/5' :
+                  status === 'rejected' ? 'border-red-500/20 bg-red-500/5' :
+                  actualStatus === 'shortlisted' ? 'border-blue-500/20 bg-blue-500/5' :
                   status === 'active' ? 'border-indigo-500/30 bg-indigo-500/5' :
                   'border-white/10'
                 }`}>
@@ -609,6 +737,8 @@ const InterviewProgress = () => {
                     <div className="flex items-center space-x-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${
                         status === 'completed' ? 'border-emerald-500/30 bg-emerald-500/10' :
+                        status === 'rejected' ? 'border-red-500/30 bg-red-500/10' :
+                        actualStatus === 'shortlisted' ? 'border-blue-500/30 bg-blue-500/10' :
                         status === 'active' ? 'border-indigo-500/30 bg-indigo-500/10' :
                         'border-white/20 bg-white/5'
                       }`}>
@@ -621,10 +751,16 @@ const InterviewProgress = () => {
                     </div>
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       status === 'completed' ? 'bg-emerald-500/20 text-emerald-300' :
+                      status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                      actualStatus === 'shortlisted' ? 'bg-blue-500/20 text-blue-300' :
                       status === 'active' ? 'bg-indigo-500/20 text-indigo-300' :
                       'bg-white/10 text-white/60'
                     }`}>
-                      {status === 'completed' ? 'Done' : status === 'active' ? 'Next' : 'Upcoming'}
+                      {status === 'completed' ? 'Done' : 
+                       status === 'rejected' ? 'Not Eligible' :
+                       actualStatus === 'shortlisted' ? 'Shortlisted' :
+                       status === 'active' ? actionText : 
+                       'Locked'}
                     </span>
                   </div>
                 </div>

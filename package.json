@@ -67,6 +67,7 @@
     "pdfjs-dist": "^5.1.91",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-is": "^19.2.0",
     "recharts": "^3.2.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",

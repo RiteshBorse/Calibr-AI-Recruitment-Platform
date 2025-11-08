@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Camera as CameraIcon } from "lucide-react";
 import { updateVideoState } from "@/lib/interview/videoQueueIntegration";
 
-export default function VideoProcessing({ autoStart = false }: { autoStart?: boolean }) {
+export default function VideoProcessing({
+  autoStart = false,
+}: {
+  autoStart?: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -183,13 +187,13 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
       });
 
       lastLoggedMood.current = currentMood;
-      
+
       // === UPDATE QUEUE 0 - MOOD CHANGE ===
       // Only store in DB when mood actually changes (not every frame)
       updateVideoState({
         mood: currentMood || undefined,
         gesture: lastGesture.current || undefined,
-        objects: lastObjects.current
+        objects: lastObjects.current,
       });
     }
 
@@ -271,13 +275,13 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
         if (gesturePersisted) lastLoggedGesture.current = currentGesture;
         if (objectsPersisted) lastLoggedObjects.current = currentObjects;
         lastLogTime.current = now;
-        
+
         // === UPDATE QUEUE 0 - VIOLATION DETECTED ===
         // Only store in DB when violation actually occurs (not every frame)
         updateVideoState({
           mood: lastMood.current || undefined,
           gesture: currentGesture || undefined,
-          objects: currentObjects.length > 0 ? currentObjects : undefined
+          objects: currentObjects.length > 0 ? currentObjects : undefined,
         });
       }
     }
@@ -294,7 +298,11 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
     const isMediaPipeNoise = (...args: any[]) => {
       const msg = args.join(" ");
       // Suppress WASM binary logs (single ")" or very short messages from WASM)
-      if (args.length === 1 && typeof args[0] === "string" && args[0].trim() === ")") {
+      if (
+        args.length === 1 &&
+        typeof args[0] === "string" &&
+        args[0].trim() === ")"
+      ) {
         return true;
       }
       return (
@@ -378,11 +386,11 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
 
         // Don't initialize Holistic here - do it per session in startDetection
         setMediapipeLoaded(true);
-        
+
         // Notify window that MediaPipe is loaded
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
           (window as any).mediaPipeLoaded = true;
-          window.dispatchEvent(new Event('mediapipe-loaded'));
+          window.dispatchEvent(new Event("mediapipe-loaded"));
         }
 
         // Init YOLO worker
@@ -396,10 +404,10 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
             });
           } else if (e.data.type === "yolo-ready") {
             // Notify window that YOLO is loaded (only once)
-            if (typeof window !== 'undefined' && !(window as any).yoloLoaded) {
+            if (typeof window !== "undefined" && !(window as any).yoloLoaded) {
               console.log("✅ YOLO model ready");
               (window as any).yoloLoaded = true;
-              window.dispatchEvent(new Event('yolo-loaded'));
+              window.dispatchEvent(new Event("yolo-loaded"));
             }
           }
         };
@@ -426,7 +434,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
           }
           cameraRef.current = null;
         }
-        
+
         // Close Holistic on unmount
         if (holisticRef.current) {
           try {
@@ -440,7 +448,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
       })();
 
       workerRef.current?.terminate();
-      
+
       const tracks = (videoRef.current?.srcObject as MediaStream)?.getTracks();
       tracks?.forEach((track) => track.stop());
     };
@@ -448,8 +456,13 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
 
   /** Auto-start camera if autoStart prop is true */
   useEffect(() => {
-    if (autoStart && mediapipeLoaded && cameraStatus === "idle" && !hasUsedCameraRef.current) {
-      console.log('[VideoProcessing] Auto-starting camera...');
+    if (
+      autoStart &&
+      mediapipeLoaded &&
+      cameraStatus === "idle" &&
+      !hasUsedCameraRef.current
+    ) {
+      console.log("[VideoProcessing] Auto-starting camera...");
       startDetection();
     }
   }, [autoStart, mediapipeLoaded, cameraStatus]);
@@ -538,7 +551,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
                 new faceapi.TinyFaceDetectorOptions()
               )
               .withFaceExpressions();
-            
+
             const rawMood = detections?.expressions
               ? Object.entries(detections.expressions).sort(
                   (a, b) => b[1] - a[1]
@@ -605,7 +618,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
           ) {
             return;
           }
-          
+
           try {
             await holisticRef.current.send({ image: videoRef.current });
           } catch {
@@ -670,6 +683,115 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
     lastFaceCheck.current = 0;
   };
 
+  const [status, setStatus] = useState("Loading models...");
+  const [alert, setAlert] = useState("");
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        // Load models
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri("/face-api/"),
+          faceapi.nets.faceLandmark68Net.loadFromUri("/face-api/"),
+          faceapi.nets.faceRecognitionNet.loadFromUri("/face-api/"),
+        ]);
+
+        setStatus("Starting camera...");
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+
+        const video = videoRef.current;
+        if (!video) return;
+
+        video.srcObject = stream;
+
+        await new Promise<void>((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play();
+            resolve();
+          };
+        });
+
+        // Wait a moment for camera to initialize
+        await new Promise((r) => setTimeout(r, 1000));
+
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          throw new Error("Video not ready or no camera stream");
+        }
+
+        setStatus("Initializing reference face...");
+        const first = await getFaceDescriptor(videoRef.current);
+
+        if (!first) {
+          setStatus("No face detected initially — please face the camera.");
+          return;
+        }
+
+        let reference = first;
+        let diffCount = 0;
+        setStatus("Monitoring for face changes...");
+
+        setInterval(async () => {
+          if (!videoRef.current) return;
+
+          const current = await getFaceDescriptor(videoRef.current);
+          if (!current) return;
+
+          const distance = faceapi.euclideanDistance(reference, current);
+          if (distance > 0.6) diffCount++;
+          else diffCount = 0;
+
+          if (diffCount >= 5) {
+            const personChangeLog = {
+              time: new Date().toLocaleTimeString(),
+              timestamp: new Date().toISOString(),
+              violation: "person_changed",
+              distance: distance.toFixed(2),
+            };
+
+            console.log(
+              "🚨 Person Changed (sustained detection):",
+              personChangeLog
+            );
+
+            setViolationLogs((prev) => {
+              const next = [...prev, personChangeLog];
+              if (next.length > 500) next.shift();
+              return next;
+            });
+
+            // Optional: Update queue
+            updateVideoState({
+              mood: lastMood.current || undefined,
+              gesture: lastGesture.current || undefined,
+              objects: [...(lastObjects.current || []), "person_changed"],
+            });
+
+            diffCount = 0;
+            reference = current;
+          }
+        }, 600);
+      } catch (err: any) {
+        console.error(err);
+        setStatus("Error: " + err.message);
+      }
+    };
+
+    run();
+  }, []);
+
+  const getFaceDescriptor = async (video: any) => {
+    if (!video || video.readyState < 2) return null; // check if valid
+
+    const detection = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    return detection ? detection.descriptor : null;
+  };
+
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Show video directly - smooth and hardware-accelerated */}
@@ -692,8 +814,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
         <Button
           onClick={handleStopCamera}
           variant="destructive"
-          className="bg-red-600 hover:bg-red-700"
-        >
+          className="bg-red-600 hover:bg-red-700">
           Stop Camera
         </Button>
       )}
@@ -718,8 +839,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
           </div>
           <Button
             onClick={startDetection}
-            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
-          >
+            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700">
             <CameraIcon className="h-4 w-4 mr-2" />
             Start Camera
           </Button>
@@ -759,8 +879,7 @@ export default function VideoProcessing({ autoStart = false }: { autoStart?: boo
           <Button
             onClick={startDetection}
             variant="outline"
-            className="border-red-500/30 text-red-300 hover:bg-red-600/20"
-          >
+            className="border-red-500/30 text-red-300 hover:bg-red-600/20">
             Try Again
           </Button>
         </div>

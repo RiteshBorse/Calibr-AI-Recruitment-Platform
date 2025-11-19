@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, FileText, Mail, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, FileText, Mail, Calendar, CheckCircle2, AlertCircle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { 
   useFetchCandidatesForJob, 
@@ -49,6 +49,7 @@ export function CandidatesTable({ job, onBack }: CandidatesTableProps) {
   const [selectedRoundType, setSelectedRoundType] = useState<'aptitude' | 'coding' | 'technicalInterview' | 'hrInterview'>('aptitude');
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null);
 
   const { candidates, loading: candidatesLoading, error: candidatesError, refetch } = useFetchCandidatesForJob(job._id);
   
@@ -128,6 +129,50 @@ export function CandidatesTable({ job, onBack }: CandidatesTableProps) {
       refetchRoundInfo();
       // Optionally refresh candidates list
       refetch();
+    }
+  };
+
+  const handleGenerateReport = async (candidateId: string, candidateName: string) => {
+    setGeneratingReport(candidateId);
+    
+    try {
+      const response = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          candidateId,
+          jobId: job._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate report');
+      }
+
+      // Get the PDF blob
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${candidateName.replace(/\s+/g, '_')}_Evaluation_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Report generated successfully');
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate report');
+    } finally {
+      setGeneratingReport(null);
     }
   };
 
@@ -306,6 +351,20 @@ export function CandidatesTable({ job, onBack }: CandidatesTableProps) {
                               <FileText className="w-4 h-4" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-white/60 hover:text-white"
+                            title="Generate Evaluation Report"
+                            onClick={() => handleGenerateReport(candidate.candidateId, candidate.candidateName)}
+                            disabled={generatingReport === candidate.candidateId}
+                          >
+                            {generatingReport === candidate.candidateId ? (
+                              <span className="animate-spin">⏳</span>
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -331,7 +390,7 @@ export function CandidatesTable({ job, onBack }: CandidatesTableProps) {
                 <Button
                   onClick={handleSubmit}
                   disabled={selectedCandidates.size === 0 || updating || !roundId}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                  className="bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
                 >
                   {updating ? 'Submitting...' : `Submit Selection (${selectedCandidates.size})`}
                 </Button>

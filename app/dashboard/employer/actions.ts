@@ -65,6 +65,15 @@ export type {
   RoundInfo,
 } from './actions/manageCandidates-actions';
 
+// Report generation actions
+export {
+  fetchCandidateEvaluationData,
+} from './actions/report-generation-actions';
+
+export type {
+  CandidateReportData,
+} from './actions/report-generation-actions';
+
 // Job management actions
 export {
   fetchEmployerJobs,
